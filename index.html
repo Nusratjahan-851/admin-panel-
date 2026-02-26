@@ -2,106 +2,208 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>imo Admin Panel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>imo Client - Telegram Integrated</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { font-family: sans-serif; display: flex; height: 100vh; margin: 0; background: #f4f7f9; }
-        .sidebar { width: 300px; background: white; border-right: 1px solid #ddd; overflow-y: auto; }
-        .user-item { padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; }
-        .user-item:hover { background: #e1f5fe; }
-        .main { flex: 1; display: flex; flex-direction: column; }
-        .chat-box { flex: 1; padding: 20px; overflow-y: auto; background: #ebebeb; display: flex; flex-direction: column; gap: 10px; }
-        .bubble { padding: 10px; border-radius: 10px; max-width: 70%; }
-        .sent { align-self: flex-end; background: #00a8ff; color: white; }
-        .received { align-self: flex-start; background: white; }
-        .input-area { padding: 20px; background: white; display: flex; gap: 10px; }
-        input { flex: 1; padding: 10px; border-radius: 5px; border: 1px solid #ddd; }
-        button { padding: 10px 20px; background: #00a8ff; color: white; border: none; cursor: pointer; }
+        :root { --imo-blue: #00a8ff; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; }
+        body { background: #ddd; display: flex; justify-content: center; height: 100vh; overflow: hidden; }
+        #app { width: 100%; max-width: 450px; background: white; height: 100%; position: relative; display: flex; flex-direction: column; }
+
+        /* Calling Overlay */
+        #call-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; display: none; flex-direction: column; align-items: center; justify-content: space-around; color: white; }
+        .call-img { width: 120px; height: 120px; border-radius: 50%; border: 3px solid var(--imo-blue); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 168, 255, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(0, 168, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 168, 255, 0); } }
+        .call-btns { display: flex; gap: 50px; }
+        .btn-call { width: 65px; height: 65px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; border: none; }
+        .decline { background: #ff3b30; color: white; }
+        .accept { background: #4cd137; color: white; }
+
+        /* Main UI Components */
+        .header { display: flex; justify-content: space-around; padding: 10px; border-bottom: 1px solid #eee; }
+        .chat-list { flex: 1; overflow-y: auto; }
+        .chat-item { display: flex; align-items: center; padding: 15px; cursor: pointer; border-bottom: 1px solid #f9f9f9; }
+        .chat-avatar { width: 50px; height: 50px; border-radius: 50%; margin-right: 15px; }
+
+        /* Inbox */
+        #inbox { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #ebebeb; z-index: 500; display: none; flex-direction: column; }
+        .inbox-header { background: white; padding: 10px; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid #ddd; }
+        .messages-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .bubble { max-width: 80%; padding: 10px; border-radius: 15px; font-size: 15px; line-height: 1.4; }
+        .sent { align-self: flex-end; background: var(--imo-blue); color: white; border-bottom-right-radius: 2px; }
+        .received { align-self: flex-start; background: white; border-bottom-left-radius: 2px; }
+
+        /* Input Field */
+        .input-area { background: white; padding: 10px; display: flex; align-items: center; gap: 10px; }
+        .text-box { flex: 1; background: #f0f2f5; border-radius: 25px; padding: 8px 15px; border: none; outline: none; font-size: 16px; }
+        .send-btn { color: var(--imo-blue); font-size: 24px; cursor: pointer; border: none; background: none; }
     </style>
 </head>
 <body>
 
-<div class="sidebar" id="userList">
-    <h3 style="padding:15px; background:#00a8ff; color:white; margin:0;">Users</h3>
-</div>
+<div id="app">
+    <!-- Call Screen -->
+    <div id="call-overlay">
+        <h2 id="call-status">Calling...</h2>
+        <img src="my-logo.jpg" class="call-img">
+        <h3 id="call-name">Nusrat Jahan</h3>
+        <div class="call-btns">
+            <button class="btn-call decline" onclick="endCall()"><i class="fa-solid fa-phone-slash"></i></button>
+            <button class="btn-call accept" id="accept-btn" onclick="acceptCall()" style="display:none;"><i class="fa-solid fa-phone"></i></button>
+        </div>
+    </div>
 
-<div class="main">
-    <div id="chatTitle" style="padding:15px; background:white; font-weight:bold; border-bottom:1px solid #ddd;">Select a user</div>
-    <div class="chat-box" id="adminChatBox"></div>
-    <div class="input-area">
-        <input type="text" id="adminMsg" placeholder="Type reply...">
-        <button onclick="sendAdminReply()">Reply</button>
+    <!-- Home Screen -->
+    <div id="home">
+        <div class="header">
+            <img src="my-logo.jpg" style="width:35px; border-radius:50%">
+            <i class="fa-solid fa-comment-dots" style="color:var(--imo-blue); font-size:24px;"></i>
+            <i class="fa-solid fa-user-group" style="color:#ccc; font-size:24px;"></i>
+        </div>
+        <div class="chat-list">
+            <div class="chat-item" onclick="openInbox()">
+                <img src="my-logo.jpg" class="chat-avatar">
+                <div style="flex:1">
+                    <h4 id="my-id-display">Nusrat Jahan (You)</h4>
+                    <p style="font-size:12px; color:#888" id="last-msg">Message yourself</p>
+                </div>
+                <i class="fa-solid fa-phone" style="color:var(--imo-blue)"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inbox Screen -->
+    <div id="inbox">
+        <div class="inbox-header">
+            <i class="fa-solid fa-arrow-left" onclick="closeInbox()"></i>
+            <div style="flex:1"><h4>Nusrat Jahan</h4><span style="font-size:12px; color:green">Online</span></div>
+            <div style="display:flex; gap:20px; color:var(--imo-blue); font-size:20px;">
+                <i class="fa-solid fa-phone" onclick="makeCall('Audio Call')"></i>
+                <i class="fa-solid fa-video" onclick="makeCall('Video Call')"></i>
+            </div>
+        </div>
+        <div class="messages-container" id="msg-box"></div>
+        <div class="input-area">
+            <input type="text" id="msgInput" class="text-box" placeholder="Write a message...">
+            <button class="send-btn" onclick="sendText()"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
     </div>
 </div>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, onValue, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+<audio id="ringtone" src="https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3" loop></audio>
+<audio id="msg-sound" src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3"></audio>
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyCYH0ZSeLjH_T3HJ9hVQ84afB5KyAEZi2Y",
-        authDomain: "my-sc-tools.firebaseapp.com",
-        databaseURL: "https://my-sc-tools-default-rtdb.firebaseio.com",
-        projectId: "my-sc-tools",
-        storageBucket: "my-sc-tools.firebasestorage.app",
-        messagingSenderId: "285986090017",
-        appId: "1:285986090017:web:7fca61fe27e3061db74760"
-    };
+<script>
+    // --- কনিফিগারেশন ---
+    const TELEGRAM_TOKEN = '8367516207:AAEex2m_zKDK3I0DsyAfmfTMXUNvl2K4IgY'; // আপনার বট টোকেন দিন
+    const CHAT_ID = '8271536101';        // আপনার চ্যাট আইডি দিন
+    
+    let userId = localStorage.getItem('imo_user_id') || Math.floor(100000 + Math.random() * 900000);
+    localStorage.setItem('imo_user_id', userId);
+    document.getElementById('my-id-display').innerText = `Nusrat Jahan - ID: ${userId}`;
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    let currentUserId = null;
+    const ringtone = document.getElementById('ringtone');
+    const msgSound = document.getElementById('msg-sound');
+    let lastUpdateId = 0;
 
-    // ১. ইউজার লিস্ট লোড করা
-    onValue(ref(db, 'users'), (snapshot) => {
-        const userList = document.getElementById('userList');
-        userList.innerHTML = '<h3 style="padding:15px; background:#00a8ff; color:white; margin:0;">Users</h3>';
-        snapshot.forEach((child) => {
-            const user = child.val();
-            const div = document.createElement('div');
-            div.className = 'user-item';
-            div.innerHTML = `<strong>ID: ${user.userId}</strong><br><small>${user.lastMessage}</small>`;
-            div.onclick = () => loadUserChat(user.userId);
-            userList.appendChild(div);
-        });
-    });
-
-    // ২. নির্দিষ্ট ইউজারের চ্যাট লোড করা
-    window.loadUserChat = function(id) {
-        currentUserId = id;
-        document.getElementById('chatTitle').innerText = "Chatting with ID: " + id;
-        const chatBox = document.getElementById('adminChatBox');
-        chatBox.innerHTML = '';
-
-        onValue(ref(db, `chats/${id}/messages`), (snapshot) => {
-            chatBox.innerHTML = '';
-            snapshot.forEach((msgChild) => {
-                const msg = msgChild.val();
-                appendBubble(msg.text, msg.sender === 'admin' ? 'sent' : 'received');
+    // টেলিগ্রামে মেসেজ পাঠানো
+    async function sendToTelegram(text) {
+        const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
+        const message = `🔔 User ID: ${userId}\n💬 Message: ${text}`;
+        try {
+            await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: CHAT_ID, text: message })
             });
-        });
+        } catch (e) { console.error("Telegram error:", e); }
     }
 
-    window.sendAdminReply = function() {
-        const text = document.getElementById('adminMsg').value;
-        if (!text || !currentUserId) return;
-
-        push(ref(db, `chats/${currentUserId}/messages`), {
-            sender: 'admin',
-            text: text,
-            timestamp: Date.now()
-        });
-
-        document.getElementById('adminMsg').value = '';
-    }
-
-    function appendBubble(text, type) {
-        const chatBox = document.getElementById('adminChatBox');
+    // ব্রাউজার স্ক্রিনে মেসেজ দেখানো
+    function appendMessage(text, side) {
         const div = document.createElement('div');
-        div.className = `bubble ${type}`;
+        div.className = `bubble ${side}`;
         div.innerText = text;
-        chatBox.appendChild(div);
-        chatBox.scrollTop = chatBox.scrollHeight;
+        document.getElementById('msg-box').appendChild(div);
+        document.getElementById('msg-box').scrollTop = document.getElementById('msg-box').scrollHeight;
+        if(side === 'received') msgSound.play();
     }
+
+    // মেসেজ সেন্ড বাটন ফাংশন
+    window.sendText = () => {
+        const input = document.getElementById('msgInput');
+        const text = input.value.trim();
+        if(!text) return;
+        appendMessage(text, 'sent');
+        sendToTelegram(text);
+        input.value = '';
+    }
+
+    // কল করার লজিক
+    window.makeCall = (type) => {
+        sendToTelegram(`📞 Incoming ${type}...\nCommands: type "accept" or "end"`);
+        showCallOverlay(`Calling...`, false);
+    }
+
+    window.acceptCall = () => {
+        hideCallOverlay();
+        appendMessage("Call Connected (Simulated)", "received");
+    }
+
+    window.endCall = () => {
+        sendToTelegram(`❌ Call Ended by User`);
+        hideCallOverlay();
+    }
+
+    function showCallOverlay(status, showAccept) {
+        document.getElementById('call-overlay').style.display = 'flex';
+        document.getElementById('call-status').innerText = status;
+        document.getElementById('accept-btn').style.display = showAccept ? 'flex' : 'none';
+        ringtone.play();
+    }
+
+    function hideCallOverlay() {
+        document.getElementById('call-overlay').style.display = 'none';
+        ringtone.pause();
+    }
+
+    // টেলিগ্রাম থেকে মেসেজ/কমান্ড রিসিভ করা (Polling)
+    async function fetchUpdates() {
+        const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/getUpdates?offset=${lastUpdateId + 1}`;
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            if (data.result && data.result.length > 0) {
+                data.result.forEach(update => {
+                    lastUpdateId = update.update_id;
+                    const msgText = update.message.text.toLowerCase();
+                    
+                    // কমান্ড প্রসেসিং
+                    if (msgText === 'accept') {
+                        document.getElementById('call-status').innerText = 'Connected';
+                        ringtone.pause();
+                    } else if (msgText === 'end') {
+                        hideCallOverlay();
+                    } else {
+                        // সাধারণ মেসেজ হিসেবে ইনবক্সে দেখানো
+                        appendMessage(update.message.text, 'received');
+                    }
+                });
+            }
+        } catch (e) { console.error("Polling error:", e); }
+    }
+
+    // প্রতি ৩ সেকেন্ডে একবার আপডেট চেক করবে
+    setInterval(fetchUpdates, 3000);
+
+    // UI কন্ট্রোল
+    window.openInbox = () => document.getElementById('inbox').style.display = 'flex';
+    window.closeInbox = () => document.getElementById('inbox').style.display = 'none';
+
+    // ইউজার লিস্ট নোটিফিকেশন (বট ওপেন করলেই অ্যাডমিন জানবে)
+    sendToTelegram("🌐 User is Online (imo Client)");
+
 </script>
 </body>
 </html>
