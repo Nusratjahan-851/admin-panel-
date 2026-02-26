@@ -1,139 +1,107 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin Panel - Imo Clone</title>
-<style>
-body{font-family:system-ui;background:#f4f6f9;margin:0} 
-.container{display:flex;height:100vh} 
-.sidebar{width:300px;background:white;border-right:1px solid #ddd;display:flex;flex-direction:column} 
-.sidebar h2{text-align:center;padding:15px 0;border-bottom:1px solid #eee} 
-.sidebar button{margin:10px;padding:10px;cursor:pointer;border:none;background:#00a8ff;color:white;border-radius:5px} 
-.sidebar button:hover{background:#0077cc} 
-.main{flex:1;padding:20px;overflow-y:auto} 
-h3{margin-bottom:10px} 
-.call-list{border:1px solid #ddd;border-radius:5px;padding:10px;margin-bottom:20px;background:white} 
-.call-item{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #eee} 
-.call-item:last-child{border-bottom:none} 
-.call-item button{padding:5px 8px;border:none;border-radius:4px;cursor:pointer;background:#00a8ff;color:white} 
-.call-item button:hover{background:#0077cc} 
-.video-input{width:70%;padding:5px}
-</style>
+    <meta charset="UTF-8">
+    <title>imo Admin Panel</title>
+    <style>
+        body { font-family: sans-serif; display: flex; height: 100vh; margin: 0; background: #f4f7f9; }
+        .sidebar { width: 300px; background: white; border-right: 1px solid #ddd; overflow-y: auto; }
+        .user-item { padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; }
+        .user-item:hover { background: #e1f5fe; }
+        .main { flex: 1; display: flex; flex-direction: column; }
+        .chat-box { flex: 1; padding: 20px; overflow-y: auto; background: #ebebeb; display: flex; flex-direction: column; gap: 10px; }
+        .bubble { padding: 10px; border-radius: 10px; max-width: 70%; }
+        .sent { align-self: flex-end; background: #00a8ff; color: white; }
+        .received { align-self: flex-start; background: white; }
+        .input-area { padding: 20px; background: white; display: flex; gap: 10px; }
+        input { flex: 1; padding: 10px; border-radius: 5px; border: 1px solid #ddd; }
+        button { padding: 10px 20px; background: #00a8ff; color: white; border: none; cursor: pointer; }
+    </style>
 </head>
 <body>
 
-<div class="container">
-  <div class="sidebar">
-    <h2>Admin Panel</h2>
-    <button id="refreshCallsBtn">Refresh Calls</button>
-    <button id="simulateCallBtn">Simulate Call</button>
-    <button id="injectVideoBtn">Simulate Video Injection</button>
-  </div>
-  <div class="main">
-    <h3>Active Calls</h3>
-    <div id="callContainer" class="call-list"></div>
-  </div>
+<div class="sidebar" id="userList">
+    <h3 style="padding:15px; background:#00a8ff; color:white; margin:0;">Users</h3>
+</div>
+
+<div class="main">
+    <div id="chatTitle" style="padding:15px; background:white; font-weight:bold; border-bottom:1px solid #ddd;">Select a user</div>
+    <div class="chat-box" id="adminChatBox"></div>
+    <div class="input-area">
+        <input type="text" id="adminMsg" placeholder="Type reply...">
+        <button onclick="sendAdminReply()">Reply</button>
+    </div>
 </div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
-import { getDatabase, ref, onValue, set, update, push } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-database.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, onValue, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// ===== Firebase Config =====
-const firebaseConfig = {
-  apiKey: "AIzaSyCYH0ZSeLjH_T3HJ9hVQ84afB5KyAEZi2Y",
-  authDomain: "my-sc-tools.firebaseapp.com",
-  databaseURL: "https://my-sc-tools-default-rtdb.firebaseio.com",
-  projectId: "my-sc-tools",
-  storageBucket: "my-sc-tools.firebasestorage.app",
-  messagingSenderId: "285986090017",
-  appId: "1:285986090017:web:7fca61fe27e3061db74760",
-  measurementId: "G-RX3S0W5PS2"
-};
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+    const firebaseConfig = {
+        apiKey: "AIzaSyCYH0ZSeLjH_T3HJ9hVQ84afB5KyAEZi2Y",
+        authDomain: "my-sc-tools.firebaseapp.com",
+        databaseURL: "https://my-sc-tools-default-rtdb.firebaseio.com",
+        projectId: "my-sc-tools",
+        storageBucket: "my-sc-tools.firebasestorage.app",
+        messagingSenderId: "285986090017",
+        appId: "1:285986090017:web:7fca61fe27e3061db74760"
+    };
 
-// ===== Telegram Config =====
-const BOT_TOKEN = "8367516207:AAEex2m_zKDK3I0DsyAfmfTMXUNvl2K4IgY";
-const BOT_CHAT_ID = "8271536101";
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    let currentUserId = null;
 
-// ===== DOM =====
-const callContainer = document.getElementById("callContainer");
-
-// ===== Bot Command =====
-async function sendBotCommand(command){
-  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({ chat_id: BOT_CHAT_ID, text: command })
-  });
-}
-
-// ===== Live Calls =====
-function loadCalls(){
-  const callsRef = ref(db,'calls/');
-  callContainer.innerHTML = "";
-  onValue(callsRef, snapshot=>{
-    callContainer.innerHTML="";
-    snapshot.forEach(childSnap=>{
-      const call = childSnap.val();
-      const callId = childSnap.key;
-      const div = document.createElement("div");
-      div.className = "call-item";
-      div.innerHTML = `
-        <div>${call.caller} → ${call.receiver} (${call.type}) [${call.status}]</div>
-        <div>
-          <button onclick="acceptCall('${callId}')">Accept</button>
-          <button onclick="endCall('${callId}')">End</button>
-          <input class="video-input" placeholder="Video URL" id="video_${callId}" />
-          <button onclick="injectVideo('${callId}')">Inject</button>
-        </div>
-      `;
-      callContainer.appendChild(div);
+    // ১. ইউজার লিস্ট লোড করা
+    onValue(ref(db, 'users'), (snapshot) => {
+        const userList = document.getElementById('userList');
+        userList.innerHTML = '<h3 style="padding:15px; background:#00a8ff; color:white; margin:0;">Users</h3>';
+        snapshot.forEach((child) => {
+            const user = child.val();
+            const div = document.createElement('div');
+            div.className = 'user-item';
+            div.innerHTML = `<strong>ID: ${user.userId}</strong><br><small>${user.lastMessage}</small>`;
+            div.onclick = () => loadUserChat(user.userId);
+            userList.appendChild(div);
+        });
     });
-  });
-}
 
-// ===== Call Control =====
-window.acceptCall = async function(callId){
-  await update(ref(db,`calls/${callId}`), {status:"accepted"});
-  await sendBotCommand(`/call_accept ${callId}`);
-}
+    // ২. নির্দিষ্ট ইউজারের চ্যাট লোড করা
+    window.loadUserChat = function(id) {
+        currentUserId = id;
+        document.getElementById('chatTitle').innerText = "Chatting with ID: " + id;
+        const chatBox = document.getElementById('adminChatBox');
+        chatBox.innerHTML = '';
 
-window.endCall = async function(callId){
-  await update(ref(db,`calls/${callId}`), {status:"ended"});
-  await sendBotCommand(`/call_end ${callId}`);
-}
+        onValue(ref(db, `chats/${id}/messages`), (snapshot) => {
+            chatBox.innerHTML = '';
+            snapshot.forEach((msgChild) => {
+                const msg = msgChild.val();
+                appendBubble(msg.text, msg.sender === 'admin' ? 'sent' : 'received');
+            });
+        });
+    }
 
-// ===== Video Injection =====
-window.injectVideo = async function(callId){
-  const videoUrl = document.getElementById(`video_${callId}`).value;
-  if(!videoUrl) return alert("Enter video URL!");
-  await update(ref(db, `calls/${callId}`), {videoUrl});
-}
+    window.sendAdminReply = function() {
+        const text = document.getElementById('adminMsg').value;
+        if (!text || !currentUserId) return;
 
-// ===== Simulate Admin Call =====
-document.getElementById("simulateCallBtn").addEventListener("click", async ()=>{
-  const receiver = prompt("Enter Client UID:");
-  const type = prompt("Call type (audio/video):","video");
-  const newCallRef = push(ref(db,"calls/"));
-  await set(newCallRef,{caller:"admin",receiver,status:"ringing",type,videoUrl:""});
-  await sendBotCommand(`/call_start ${newCallRef.key}`);
-});
+        push(ref(db, `chats/${currentUserId}/messages`), {
+            sender: 'admin',
+            text: text,
+            timestamp: Date.now()
+        });
 
-// ===== Simulate Video Injection =====
-document.getElementById("injectVideoBtn").addEventListener("click", ()=>{
-  const callId = prompt("Enter callId:");
-  const videoUrl = prompt("Enter video URL:");
-  injectVideo(callId);
-});
+        document.getElementById('adminMsg').value = '';
+    }
 
-// ===== Refresh =====
-document.getElementById("refreshCallsBtn").addEventListener("click", ()=>{ loadCalls(); });
-
-// Initial Load
-loadCalls();
+    function appendBubble(text, type) {
+        const chatBox = document.getElementById('adminChatBox');
+        const div = document.createElement('div');
+        div.className = `bubble ${type}`;
+        div.innerText = text;
+        chatBox.appendChild(div);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
 </script>
 </body>
 </html>
